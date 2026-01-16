@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=61", "wheel", "cython", "numpy"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ssm"
+version = "0.1.0"
+description = "Add your description here"
+requires-python = ">=3.12"
+dependencies = [
+    "autograd>=1.8.0",
+    "cmocean>=4.0.3",
+    "colorcet>=3.1.0",
+    "cython>=3.2.4",
+    "ipywidgets>=8.1.8",
+    "jupyterlab>=4.5.2",
+    "matplotlib>=3.10.8",
+    "numba>=0.63.1",
+    "numpy>=2.3.5",
+    "polars[numpy,pyarrow]>=1.37.1",
+    "ruff>=0.14.13",
+    "scikit-learn>=1.8.0",
+    "scipy>=1.17.0",
+    "seaborn>=0.13.2",
+    "tqdm>=4.67.1",
+]
+
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["ssm*"]
