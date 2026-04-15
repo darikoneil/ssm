@@ -53,15 +53,15 @@ class _GammaEmissionsMixin(object):
             self.inv_alphas = self.inv_alphas[perm]
             
     def neg_hessian_log_emissions_prob(self, data, input, mask, tag, x, Ez):
-    """
-    Analytical negative Hessian of log p(y | x) for Gamma emissions.
-
-    We parameterize with mean mu and shape alpha:
-        y ~ Gamma(alpha, beta),  beta = alpha / mu
-
-    log p(y | mu, alpha) = const - alpha * log(mu) - alpha * y / mu
-    where mu = f(eta), eta = Cx + Fu + d.
-    """
+        """
+        Analytical negative Hessian of log p(y | x) for Gamma emissions.
+    
+        We parameterize with mean mu and shape alpha:
+            y ~ Gamma(alpha, beta),  beta = alpha / mu
+    
+        log p(y | mu, alpha) = const - alpha * log(mu) - alpha * y / mu
+        where mu = f(eta), eta = Cx + Fu + d.
+        """
         if self.single_subspace is False:
             raise Exception("Multiple subspaces are not supported for this Emissions class.")
     
