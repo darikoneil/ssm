@@ -12,7 +12,7 @@ from ssm.optimizers import adam, bfgs, rmsprop, sgd, lbfgs
 from ssm.stats import independent_studentst_logpdf, bernoulli_logpdf
 from ssm.regression import fit_linear_regression
 
-from ssm.emissions import Emmissions, _LinearEmissions, _OrthogonalLinearEmissions, _IdentityEmissions
+from ssm.emissions import Emissions, _LinearEmissions, _OrthogonalLinearEmissions, _IdentityEmissions
 
 class _GammaEmissionsMixin(object):
     def __init__(self, N, K, D, M=0, single_subspace=True, link="softplus", **kwargs):
