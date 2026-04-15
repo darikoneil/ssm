@@ -51,7 +51,40 @@ class _GammaEmissionsMixin(object):
         super(_GammaEmissionsMixin, self).permute(perm)
         if not self.single_subspace:
             self.inv_alphas = self.inv_alphas[perm]
+            
+    def neg_hessian_log_emissions_prob(self, data, input, mask, tag, x, Ez):
+    """
+    Analytical negative Hessian of log p(y | x) for Gamma emissions.
 
+    We parameterize with mean mu and shape alpha:
+        y ~ Gamma(alpha, beta),  beta = alpha / mu
+
+    log p(y | mu, alpha) = const - alpha * log(mu) - alpha * y / mu
+    where mu = f(eta), eta = Cx + Fu + d.
+    """
+    if self.single_subspace is False:
+        raise Exception("Multiple subspaces are not supported for this Emissions class.")
+
+    mask = np.ones_like(data, dtype=bool) if mask is None else mask
+    y = np.clip(data, 1e-16, np.inf)
+    eta = self.forward(x, input, tag)[:, 0, :]
+    mu = np.clip(self.mean(eta), 1e-16, np.inf)
+    alpha = np.clip(self.alphas[0], 1e-16, np.inf)
+
+    if self.link_name == "log":
+        d2l_deta2 = -alpha * y / mu
+    elif self.link_name == "softplus":
+        dmu = logistic(eta)
+        d2mu = dmu * (1.0 - dmu)
+        dl_dmu = alpha * (y - mu) / (mu ** 2)
+        d2l_dmu2 = alpha * (mu - 2.0 * y) / (mu ** 3)
+        d2l_deta2 = d2l_dmu2 * (dmu ** 2) + dl_dmu * d2mu
+    else:
+        raise Exception("No Hessian calculation for link: {}".format(self.link_name))
+
+    d2l_deta2 = d2l_deta2 * mask
+    hess = np.einsum('tn, ni, nj ->tij', d2l_deta2, self.Cs[0], self.Cs[0])
+    return -1.0 * hess
     def _log_mean(self, x):
         return np.exp(x)
 
