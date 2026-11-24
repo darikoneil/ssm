@@ -12,7 +12,8 @@ from scipy.special import logsumexp
 from ssm.stats import multivariate_normal_logpdf, \
     expected_multivariate_normal_logpdf, diagonal_gaussian_logpdf, \
     independent_studentst_logpdf, bernoulli_logpdf, categorical_logpdf, \
-    poisson_logpdf, vonmises_logpdf
+    poisson_logpdf, gamma_deviance_residuals, \
+    gamma_coefficient_of_determination, vonmises_logpdf
 
 
 def test_multivariate_normal_logpdf_simple(D=10):
@@ -260,6 +261,66 @@ def test_poisson_logpdf(T=100, K=4, D=10):
     ll1 = poisson_logpdf(x[:, None, :], lambdas)
     ll2 = np.sum(poisson.logpmf(x[:, None, :], lambdas[None, :, :]), axis=-1)
     assert np.allclose(ll1, ll2)
+
+
+def test_gamma_deviance_residuals(T=100, K=4, D=10):
+    # Test broadcasting over datapoints and fitted means.
+    y = np.exp(npr.randn(T, D))
+    mus = np.exp(npr.randn(K, D))
+
+    rs = gamma_deviance_residuals(y[:, None, :], mus)
+    unit_deviance = 2.0 * ((y[:, None, :] - mus[None, :, :]) / mus[None, :, :]
+                           - np.log(y[:, None, :] / mus[None, :, :]))
+    expected = np.sign(y[:, None, :] - mus[None, :, :]) * np.sqrt(unit_deviance)
+    assert np.allclose(rs, expected)
+
+
+def test_gamma_deviance_residuals_mask(T=100, K=4, D=10):
+    y = np.exp(npr.randn(T, D))
+    mus = np.exp(npr.randn(K, D))
+    mask = npr.rand(T, D) < 0.5
+
+    rs = gamma_deviance_residuals(y[:, None, :], mus, mask=mask[:, None, :])
+    full_mask = np.broadcast_to(mask[:, None, :], rs.shape)
+    assert np.all(rs[~full_mask] == 0)
+
+
+def test_gamma_deviance_residuals_zero_at_mean(T=100, D=10):
+    y = np.exp(npr.randn(T, D))
+    rs = gamma_deviance_residuals(y, y)
+    assert np.allclose(rs, 0)
+
+
+def test_gamma_coefficient_of_determination_perfect_fit(T=100, D=10):
+    y = np.exp(npr.randn(T, D))
+    r2 = gamma_coefficient_of_determination(y, y)
+    assert np.allclose(r2, 1)
+
+
+def test_gamma_coefficient_of_determination_null_model(T=100, D=10):
+    y = np.exp(npr.randn(T, D))
+    mus = np.mean(y) * np.ones_like(y)
+    r2 = gamma_coefficient_of_determination(y, mus)
+    assert np.allclose(r2, 0)
+
+
+def test_gamma_coefficient_of_determination_masked(T=100, K=4, D=10):
+    y = np.exp(npr.randn(T, D))
+    mus = np.exp(npr.randn(K, D))
+    mask = npr.rand(T, D) < 0.5
+
+    r2 = gamma_coefficient_of_determination(
+        y[:, None, :], mus, mask=mask[:, None, :], axis=(0, 2))
+
+    null_mu = np.sum(y[mask]) / np.sum(mask)
+    model_deviance = np.zeros(K)
+    null_deviance = 2.0 * np.sum((y[mask] - null_mu) / null_mu - np.log(y[mask] / null_mu))
+    for k in range(K):
+        yk = y[mask]
+        muk = np.broadcast_to(mus[k], y.shape)[mask]
+        model_deviance[k] = 2.0 * np.sum((yk - muk) / muk - np.log(yk / muk))
+
+    assert np.allclose(r2, 1.0 - model_deviance / null_deviance)
 
 
 @nottest

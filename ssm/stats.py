@@ -557,6 +557,101 @@ def poisson_logpdf(data, lambdas, mask=None):
     return np.sum(lls * mask, axis=-1)
 
 
+def _gamma_unit_deviance(data, mus):
+    return 2.0 * ((data - mus) / mus - np.log(data / mus))
+
+
+def gamma_deviance_residuals(data, mus, mask=None):
+    """
+    Compute deviance residuals for Gamma-distributed data.
+
+    This will broadcast as long as data and mus have the same (or at
+    least compatible) leading dimensions.  The Gamma unit deviance is
+
+        2 * ((y - mu) / mu - log(y / mu))
+
+    and the residual is the signed square root of that quantity.
+
+    Parameters
+    ----------
+    data : array_like (..., D)
+        The observed positive Gamma data
+
+    mus : array_like (..., D)
+        The positive fitted means of the Gamma distribution(s)
+
+    mask : array_like (..., D) bool
+        Optional mask indicating which entries in the data are observed
+
+    Returns
+    -------
+    residuals : array_like (..., D)
+        Signed deviance residuals for each observed entry.  Masked
+        entries are set to zero.
+    """
+    D = data.shape[-1]
+    assert mus.shape[-1] == D
+    assert np.all(data > 0)
+    assert np.all(mus > 0)
+
+    # Check mask
+    mask = mask if mask is not None else np.ones_like(data, dtype=bool)
+    assert mask.shape == data.shape
+
+    unit_deviance = _gamma_unit_deviance(data, mus)
+    unit_deviance = np.maximum(unit_deviance, 0.0)
+    return np.sign(data - mus) * np.sqrt(unit_deviance) * mask
+
+
+def gamma_coefficient_of_determination(data, mus, mask=None, axis=None):
+    """
+    Compute the deviance-based coefficient of determination for a Gamma model.
+
+    This pseudo-R^2 measures the proportional reduction in Gamma deviance
+    relative to a null model that predicts the observed mean:
+
+        1 - model_deviance / null_deviance
+
+    Parameters
+    ----------
+    data : array_like (..., D)
+        The observed positive Gamma data
+
+    mus : array_like (..., D)
+        The positive fitted means of the Gamma distribution(s)
+
+    mask : array_like (..., D) bool
+        Optional mask indicating which entries in the data are observed
+
+    axis : None, int, or tuple of ints
+        Axis or axes over which to sum deviance terms.  By default, all
+        entries are reduced to a scalar.
+
+    Returns
+    -------
+    r2 : array_like
+        Deviance-based coefficient of determination.  It is 1 for a
+        perfect fit, 0 for the null mean model, and can be negative when
+        the fitted means are worse than the null model.
+    """
+    D = data.shape[-1]
+    assert mus.shape[-1] == D
+    assert np.all(data > 0)
+    assert np.all(mus > 0)
+
+    # Check mask
+    mask = mask if mask is not None else np.ones_like(data, dtype=bool)
+    assert mask.shape == data.shape
+
+    observed = np.sum(mask, axis=axis, keepdims=True)
+    assert np.all(observed > 0)
+
+    null_mu = np.sum(data * mask, axis=axis, keepdims=True) / observed
+    model_deviance = np.sum(_gamma_unit_deviance(data, mus) * mask, axis=axis)
+    null_deviance = np.sum(_gamma_unit_deviance(data, null_mu) * mask, axis=axis)
+    return 1.0 - model_deviance / null_deviance
+
+
 def categorical_logpdf(data, logits, mask=None):
     """
     Compute the log probability density of a categorical distribution.
